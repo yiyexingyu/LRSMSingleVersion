@@ -5,6 +5,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+from LRSMSingleVersion.Aplication.App import BASE_DIR
+
 __version__ = "1.0.0"
 
 
@@ -35,6 +37,9 @@ class MainWindow(QMainWindow):
         # 设置MenuBar
         self.menubar = self.menuBar()
         self.init_menubar()
+
+        # 设置ToolBar
+        self.init_toolbar()
 
         self.size_label = QLabel()
         self.size_label.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
@@ -151,9 +156,82 @@ class MainWindow(QMainWindow):
         help_help_action = self.create_action("帮助(H)...", self.help)
         self.add_actions(self.help_menu, (help_about_action, help_help_action))
 
+    def init_toolbar(self):
+        # 添加 快速选择 的工具栏
+        self.quick_select_toolbar = self.addToolBar("quick_select")
+        quick_select_toolbar_stylesheet = """
+        QCheckBox { margin: 0 10px; }
+        QLabel { margin-left: 8px; }
+        QLineEdit { margin-right: 7px; }
+        """
+        self.quick_select_toolbar.setStyleSheet(quick_select_toolbar_stylesheet)
+
+        # 选区操作
+        new_selection_action = self.create_action("", self.change_selection, tip="新建选区", signal="toggled",
+                                                  image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+        add_to_selection_action = self.create_action("", self.change_selection, tip="添加到选区", signal="toggled",
+                                                     image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+        remove_from_selection_action = self.create_action("", self.change_selection, tip="从选区移除", signal="toggled",
+                                                    image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+        cross_with_selection_action = self.create_action("", self.change_selection, tip="与选区交叉", signal="toggled",
+                                                    image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+        # 加入组
+        self.join_group(QActionGroup(self), (new_selection_action, add_to_selection_action,
+                                             remove_from_selection_action, cross_with_selection_action))
+        new_selection_action.setChecked(True)
+        self.add_actions(self.quick_select_toolbar, (new_selection_action, add_to_selection_action,
+                                                     remove_from_selection_action, cross_with_selection_action))
+        self.quick_select_toolbar.addSeparator()
+
+        # 消除锯齿 checkbox
+        anti_aliasing_checkbox = QCheckBox("消除锯齿")
+        anti_aliasing_checkbox.setChecked(True)   # 默认选择
+        anti_aliasing_checkbox.stateChanged.connect(self.anti_aliasing)
+        self.quick_select_toolbar.addWidget(anti_aliasing_checkbox)
+        self.quick_select_toolbar.addSeparator()
+
+        # 尺寸样式
+        self.size_style = ("正常", "固定大小", "固定比例")
+        size_style_label = QLabel("样式: ")
+        size_style_combobox = QComboBox()
+        size_style_combobox.addItems(self.size_style)
+        size_style_combobox.currentIndexChanged.connect(self.set_size_style)
+        size_style_label.setBuddy(size_style_combobox)
+        self.quick_select_toolbar.addWidget(size_style_label)
+        self.quick_select_toolbar.addWidget(size_style_combobox)
+
+        # 设置宽高 根据样式的改变而禁用和启用
+        input_width_label = QLabel("宽度: ")
+        self.input_width = QLineEdit()
+        self.input_width.setMaximumSize(QSize(60, 16777215))
+        self.input_width.setMinimumSize(QSize(60, 16777215))
+        self.input_width.returnPressed.connect(self.set_selection_size)
+        input_width_label.setBuddy(self.input_width)
+        self.quick_select_toolbar.addWidget(input_width_label)
+        self.quick_select_toolbar.addWidget(self.input_width)
+
+        # 宽高互换
+        size_swap = self.create_action("", self.size_swap, tip="宽度和高度互换", signal="triggered",
+                                       image=os.path.join(BASE_DIR, "sources/icons/size_swap.ico"))
+        self.quick_select_toolbar.addAction(size_swap)
+
+        input_height_label = QLabel("高度: ")
+        self.input_height = QLineEdit()
+        self.input_height.setMaximumSize(QSize(60, 16777215))
+        self.input_height.setMinimumSize(QSize(60, 16777215))
+        self.input_height.returnPressed.connect(self.set_selection_size)
+        input_height_label.setBuddy(self.input_height)
+        self.quick_select_toolbar.addWidget(input_height_label)
+        self.quick_select_toolbar.addWidget(self.input_height)
+        self.quick_select_toolbar.addSeparator()
+
+        # 调整边缘
+        adjust_edge_action = self.create_action("调整边缘...", self.adjust_edge)
+        self.quick_select_toolbar.addAction(adjust_edge_action)
+
     # 创建动作
     def create_action(self, text, slot=None, shortcut=None, tip=None,
-                      icon=None, checkable=False, signal="triggered"):
+                      icon=None, checkable=False, signal="triggered", image=None):
         new_action = QAction(text, self)
         if icon:
             # new_action.setIcon(QIcon(":/%s.png" % icon))
@@ -170,6 +248,8 @@ class MainWindow(QMainWindow):
                 new_action.toggled.connect(slot)
         if checkable:
             new_action.setCheckable(True)
+        if image:
+            new_action.setIcon(QIcon(image))
         return new_action
 
     @staticmethod
@@ -265,6 +345,24 @@ class MainWindow(QMainWindow):
         pass
 
     def help(self):
+        pass
+
+    def change_selection(self):
+        pass
+
+    def anti_aliasing(self, state):
+        pass
+
+    def set_size_style(self):
+        pass
+
+    def set_selection_size(self):
+        pass
+
+    def adjust_edge(self):
+        pass
+
+    def size_swap(self):
         pass
 
 
