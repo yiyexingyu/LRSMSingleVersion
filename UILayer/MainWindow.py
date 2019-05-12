@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+
 from LRSMSingleVersion.Aplication.App import BASE_DIR
 
 __version__ = "1.0.0"
@@ -36,10 +37,20 @@ class MainWindow(QMainWindow):
 
         # 设置MenuBar
         self.menubar = self.menuBar()
-        self.init_menubar()
+        self._init_menubar()
 
         # 设置ToolBar
-        self.init_toolbar()
+        self._init_toolbar()
+
+        # 创建 main window的停靠窗口
+        dock_widget_limit = Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea
+        # 创建 gadget_dock_window 停靠窗口
+        self.gadget_dock_widget, self.gadget_dock_content_widget = \
+            self.create_dock_widget(" ", "gadget_dock_window", "gadget_dock_content_widget")
+        self.gadget_dock_widget.setAllowedAreas(dock_widget_limit)
+        self._create_gadget_dock_widget()
+        self.gadget_dock_widget.setWidget(self.gadget_dock_content_widget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.gadget_dock_widget)
 
         self.size_label = QLabel()
         self.size_label.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
@@ -59,7 +70,7 @@ class MainWindow(QMainWindow):
         self.resize(640, 480)
 
     # 创建菜单栏
-    def init_menubar(self):
+    def _init_menubar(self):
 
         # 创建一级菜单
         self.file_menu = self.add_menu("文件(F)", self.menubar, "file_menu", slot=self.update_file, signal="aboutToShow")
@@ -156,7 +167,7 @@ class MainWindow(QMainWindow):
         help_help_action = self.create_action("帮助(H)...", self.help)
         self.add_actions(self.help_menu, (help_about_action, help_help_action))
 
-    def init_toolbar(self):
+    def _init_toolbar(self):
         # 添加 快速选择 的工具栏
         self.quick_select_toolbar = self.addToolBar("quick_select")
         quick_select_toolbar_stylesheet = """
@@ -175,6 +186,7 @@ class MainWindow(QMainWindow):
                                                     image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
         cross_with_selection_action = self.create_action("", self.change_selection, tip="与选区交叉", signal="toggled",
                                                     image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+
         # 加入组
         self.join_group(QActionGroup(self), (new_selection_action, add_to_selection_action,
                                              remove_from_selection_action, cross_with_selection_action))
@@ -229,12 +241,52 @@ class MainWindow(QMainWindow):
         adjust_edge_action = self.create_action("调整边缘...", self.adjust_edge)
         self.quick_select_toolbar.addAction(adjust_edge_action)
 
+    def create_dock_widget(self, widget_title, dock_widget_name, dock_widget_content_name):
+        new_dock_widget = QDockWidget(widget_title, self)
+        new_dock_widget.setObjectName(dock_widget_name)
+        dock_widget_content = QWidget()
+        dock_widget_content.setObjectName(dock_widget_content_name)
+        return new_dock_widget, dock_widget_content
+
+    def _create_gadget_dock_widget(self):
+        # move_tool_action = self.create_action("", self.change_gadget, tip="移动工具(V)", signal="toggled",
+        #                                       image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
+        # self.quick_select_action = self.create_action("", self.change_gadget, tip="快速选择工具(M)", signal="toggled",
+        #                                               image=os.path.join(BASE_DIR, "sources/icons/quick_select_oval.ico"))
+        # self.grip_action = self.create_action("", self.change_gadget, tip="抓手工具(H)", signal="toggled",
+        #                                       image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
+        # zoom_action = self.create_action("", self.change_gadget, tip="缩放工具(Z)", signal="toggled",
+        #                                  image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
+
+        move_tool_action = self.create_action("", self.change_gadget, tip="移动工具(V)", signal="toggled",
+                                              type_="Button", parent=self.gadget_dock_content_widget,
+                                              image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
+        self.quick_select_action = self.create_action("", self.change_gadget, tip="快速选择工具(M)", signal="toggled",
+                                                      type_="Button", parent=self.gadget_dock_content_widget,
+                                                      image=os.path.join(BASE_DIR, "sources/icons/quick_select_oval.ico"))
+        self.grip_action = self.create_action("", self.change_gadget, tip="抓手工具(H)", signal="toggled",
+                                              type_="Button", parent=self.gadget_dock_content_widget,
+                                              image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
+        zoom_action = self.create_action("", self.change_gadget, tip="缩放工具(Z)", signal="toggled",
+                                         type_="Button",   # parent=self.gadget_dock_content_widget,
+                                         image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
+
+        self.join_group(QButtonGroup(self), (move_tool_action, self.quick_select_action, self.grip_action, zoom_action))
+
+        # self.add_actions(self.gadget_dock_content_widget, (move_tool_action, self.quick_select_action,
+        #                                                    self.grip_action, zoom_action))
+        # self.set_widgets(self.gadget_dock_window, (move_tool_action, self.quick_select_action,
+        #                                            self.grip_action, zoom_action))
+
     # 创建动作
-    def create_action(self, text, slot=None, shortcut=None, tip=None,
-                      icon=None, checkable=False, signal="triggered", image=None):
-        new_action = QAction(text, self)
+    def create_action(self, text, slot=None, shortcut=None, tip=None, type_="QAction",
+                      icon=None, checkable=False, signal="triggered", image=None, parent=None):
+        if type_ == "QAction":
+            new_action = QAction(text, self)
+        else:
+            new_action = QPushButton(text, parent)
+
         if icon:
-            # new_action.setIcon(QIcon(":/%s.png" % icon))
             new_action.setIcon(QIcon(icon))
         if shortcut:
             new_action.setShortcut(shortcut)
@@ -279,10 +331,17 @@ class MainWindow(QMainWindow):
                 target.addSeparator()
 
     @staticmethod
+    def set_widgets(target, widgets):
+        for widget in widgets:
+            target.setWidget(widget)
+
+    @staticmethod
     def join_group(target, actions):
         for action in actions:
-            if action:
+            if action and isinstance(action, QAction):
                 target.addAction(action)
+            elif action and isinstance(action, QAbstractButton):
+                target.addButton(action)
 
     def update_file(self):
         self.add_actions(self.file_menu, self.file_menu_actions)
@@ -363,6 +422,9 @@ class MainWindow(QMainWindow):
         pass
 
     def size_swap(self):
+        pass
+
+    def change_gadget(self):
         pass
 
 
