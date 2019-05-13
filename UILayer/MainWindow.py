@@ -4,7 +4,7 @@ import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from LRSMSingleVersion.Aplication.App import BASE_DIR
+from LRSMSingleVersion.Application.App import BASE_DIR
 
 __version__ = "1.0.0"
 
@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
-        self.image = QImage()
+        # self.image = QImage()
         # 是否存在未保存的修改
         self.dirty = False
         # 没有图片还是有尚未保存的新创建的图片
@@ -24,14 +24,15 @@ class MainWindow(QMainWindow):
         # 水平镜像
         self.mirrored_horizontally = False
 
-        self.image_label = QLabel()
-        # 设置最小尺寸 以便在没有图片的时候也占一定的空间
-        self.image_label.setMinimumSize(200, 200)
+        # 窗体的中心 使用 QTabWidget
+        self.center_tab_widget = QTabWidget(self)
         # 设置 水平和垂直居中
-        self.image_label.setAlignment(Qt.AlignCenter)
+        # self.image_label.setAlignment(Qt.AlignCenter)
         # 设置其上下文菜单策略
-        self.image_label.setContextMenuPolicy(Qt.ActionsContextMenu)
-        self.setCentralWidget(self.image_label)   # 设置此label为窗口的中心部件
+        # self.image_label.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.center_tab_widget.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.setCentralWidget(self.center_tab_widget)   # 设置此label为窗口的
+        # 中心部件
 
         # 设置MenuBar
         self.menubar = self.menuBar()
@@ -55,6 +56,7 @@ class MainWindow(QMainWindow):
         self.color_dock_widget, self.color_dock_content_widget = \
             self.create_dock_widget("颜色", "color_dock_widget", "color_dock_content_widget")
         self.color_dock_widget.setAllowedAreas(dock_widget_limit)
+        self.color_dock_widget.setFixedSize(200, 140)
         self._create_color_dock_widget()
         self.color_dock_widget.setWidget(self.color_dock_content_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, self.color_dock_widget)
@@ -76,6 +78,7 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self.size_label)
         status.showMessage("Ready", 5000)  # 消息显示5秒
 
+        self.tab_id = 0
         self.screenRect = QApplication.desktop().screenGeometry()
         self.setWindowTitle("遥感地图地物类型标注")
         self.move(0, 0)
@@ -250,7 +253,7 @@ class MainWindow(QMainWindow):
         self.quick_select_toolbar.addSeparator()
 
         # 调整边缘
-        adjust_edge_action = self.create_action("调整边缘...", self.adjust_edge)
+        adjust_edge_action = self.create_action(r"调整边缘...", self.adjust_edge)
         self.quick_select_toolbar.addAction(adjust_edge_action)
 
     def _create_gadget_dock_widget(self):
@@ -335,7 +338,6 @@ class MainWindow(QMainWindow):
         self.color_dock_grid_layout.addItem(spacer_item1, 3, 0, 1, 1)
 
     def _create_layer_dock_widget(self):
-        QListWidgetItem
         self.layer_dock_content_widget.setMinimumSize(150, 180)
         self.layer_dock_vertical_layout = QVBoxLayout(self.layer_dock_content_widget)
 
@@ -437,7 +439,43 @@ class MainWindow(QMainWindow):
         self.add_actions(self.file_menu, self.file_menu_actions)
 
     def open_file(self):
-        pass
+        if True:
+            dir_ = os.path.dirname(self.file_name) if self.file_name else "."
+
+            # file_format = ["*.%s" % format_.lower() for format_ in QImageReader.supportedImageFormats()]
+            file_format = "*.png *.jpg *.ico"
+            # 打开一个 文件选择对口框
+            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_,
+                                                    "Image files (%s)" % " ".join(file_format))[0]
+            if file_name:
+                self._load_file(file_name)
+
+    def _load_file(self, file_name):
+        print(file_name)
+        if file_name:
+            image = QImage(file_name)
+            if image.isNull():
+                message = "打开文件 %s 失败" % file_name
+            else:
+                self.image = QImage()
+                self.image = image
+                self.file_name = file_name
+                self.create_new_tab()
+                self.dirty = False
+                message = "打开文件 %s 成功" % file_name
+        # self.updateStatus(message)
+
+    def create_new_tab(self):
+        new_tab = QWidget()
+        tab_vertical_layout = QVBoxLayout(new_tab)
+
+        image_label = QLabel("image_label")
+        image_label.setAlignment(Qt.AlignCenter)
+        image_label.setPixmap(QPixmap.fromImage(self.image))
+        tab_vertical_layout.addWidget(image_label)
+
+        tab_text = self.file_name.split("/")[-1]
+        self.center_tab_widget.addTab(new_tab, tab_text)
 
     def clear_open_history(self):
         pass
