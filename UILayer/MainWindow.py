@@ -1,6 +1,7 @@
 import os
 import platform
 import sys
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -14,11 +15,12 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
-        # self.image = QImage()
+        self.images = []
+        self.current_tab = 0
         # 是否存在未保存的修改
-        self.dirty = False
-        # 没有图片还是有尚未保存的新创建的图片
-        self.file_name = None
+        self.dirty = []
+        # 没有图片还是有尚未保存的新创建的图片 当前打开的文件
+        self.opening_files = {}
         # 图片的垂直镜像
         self.mirrored_vertically = False
         # 水平镜像
@@ -26,6 +28,9 @@ class MainWindow(QMainWindow):
 
         # 窗体的中心 使用 QTabWidget
         self.center_tab_widget = QTabWidget(self)
+        self.center_tab_widget.setMovable(True)
+        self.center_tab_widget.setTabsClosable(True)
+        self.center_tab_widget.tabCloseRequested.connect(self.close_file)
         # 设置 水平和垂直居中
         # self.image_label.setAlignment(Qt.AlignCenter)
         # 设置其上下文菜单策略
@@ -69,26 +74,95 @@ class MainWindow(QMainWindow):
         self.layer_dock_widget.setWidget(self.layer_dock_content_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, self.layer_dock_widget)
 
+        # 状态栏相关
         self.size_label = QLabel()
         self.size_label.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
-
         status = self.statusBar()
         # 关闭状态栏的尺寸大小拖拽符
         status.setSizeGripEnabled(False)
         status.addPermanentWidget(self.size_label)
         status.showMessage("Ready", 5000)  # 消息显示5秒
 
-        self.tab_id = 0
         self.screenRect = QApplication.desktop().screenGeometry()
         self.setWindowTitle("遥感地图地物类型标注")
         self.move(0, 0)
-        self.resize(self.screenRect.width(), self.screenRect.height())
+
+        self.resize(self.screenRect.width(), self.screenRect.height() - 90)
+        self._restore_data()
+        self.update_file_menu()
+
+    # 数据恢复
+    def _restore_data(self):
+        settings = QSettings()
+        self.recent_files = settings.value("recent_files")
+
+        window_state = settings.value("main_window/state")
+
+        if not self.recent_files:
+            self.recent_files = []
+        if window_state is not None:
+            self.restoreState(window_state)
+        QTimer.singleShot(0, self._load_initial_file)
+
+    # 加载文件数据
+    def _load_initial_file(self):
+        pass
+
+    # 重写 窗口关闭事件
+    def closeEvent(self, event):
+
+        if self.ok_to_continue():
+            settings = QSettings()
+
+            # 当前打开的文件
+            file_names = QVariant(list(self.opening_files.keys())) if self.opening_files else QVariant()
+            settings.setValue("previous_files", file_names)
+
+            # 最近打开文件
+            recently_files = QVariant(self.recent_files) if self.recent_files else QVariant()
+            settings.setValue("recent_files", recently_files)
+
+            # 主窗口的其他状态
+            settings.setValue("main_window/state", QVariant(self.saveState()))
+        else:
+            event.ignore()
+
+    # 用户关闭窗口前提问
+    def ok_to_continue(self):
+        result = [True]
+        file_names = list(self.opening_files.keys())
+
+        for file in file_names:
+            if self.opening_files[file]:
+                tip_text = "要在退出前保存对 图片\"" + file.split("/")[-1] + "\"的更改吗？"
+                reply = QMessageBox.question(self, "遥感地图标注 - 未保存提示", tip_text,
+                                             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+                if reply == QMessageBox.Cancel:
+                    return False
+                elif reply == QMessageBox.Yes:
+                    self.save_file(file)
+                else:
+                    self.close_file(file_name=file)
+        return True
+
+    def is_save_question(self, file_name):
+        tip_text = "要在退出前保存对 图片\"" + file_name.split("/")[-1] + "\"的更改吗？"
+        reply = QMessageBox.question(self, "遥感地图标注 - 未保存提示", tip_text,
+                                     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+        if reply == QMessageBox.Cancel:
+            return False
+        elif reply == QMessageBox.Yes:
+            self.save_file(file_name=file_name)
+            return True
+        else:
+            return True
 
     # 创建菜单栏
     def _init_menubar(self):
 
         # 创建一级菜单
-        self.file_menu = self.add_menu("文件(F)", self.menubar, "file_menu", slot=self.update_file, signal="aboutToShow")
+        self.file_menu = self.add_menu("文件(F)", self.menubar, "file_menu",
+                                       slot=self.update_file_menu, signal="aboutToShow")
         self.edit_menu = self.add_menu("编辑(E)", self.menubar, "edit_menu")
         self.graph_menu = self.add_menu("图像(I)", self.menubar, "graph_menu")
         self.mark_menu = self.add_menu("标注(M)", self.menubar, "mark_menu")
@@ -106,9 +180,9 @@ class MainWindow(QMainWindow):
         export_action = self.create_action("导出(E)...", self.export_file)
         quit_action = self.create_action("退出(Q)", self.quit, "Ctrl+Q")
         # 先这些动作组织保存起来 等文件菜单aboutToShow时用
-        self.file_menu_actions = (open_file_action, None, close_action, close_all_action,
+        self.file_menu_actions = [open_file_action, None, close_action, close_all_action,
                                   None, save_action, save_as_action, None, import_action,
-                                  export_action, None, quit_action)
+                                  export_action, None, quit_action]
 
         # 创建编辑菜单的二级菜单/动作
         revert_action = self.create_action("还原(O)", self.edit_step, "Ctrl+Z")
@@ -182,6 +256,7 @@ class MainWindow(QMainWindow):
         help_help_action = self.create_action("帮助(H)...", self.help)
         self.add_actions(self.help_menu, (help_about_action, help_help_action))
 
+    # 创建工具栏
     def _init_toolbar(self):
         # 添加 快速选择 的工具栏
         self.quick_select_toolbar = self.addToolBar("quick_select")
@@ -256,6 +331,7 @@ class MainWindow(QMainWindow):
         adjust_edge_action = self.create_action(r"调整边缘...", self.adjust_edge)
         self.quick_select_toolbar.addAction(adjust_edge_action)
 
+    # 创建停靠窗口
     def _create_gadget_dock_widget(self):
         self.verticalLayout = QVBoxLayout(self.gadget_dock_content_widget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -398,11 +474,6 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def add_menu(text, target, object_name=None, tip=None, slot=None, signal=None):
-        # new_menu = QMenu(text, target)
-        # if isinstance(target, QMenuBar):
-        #     new_menu = target.addMenu(text)
-        # else:
-        #     new_menu = QMenu(text, target)
         new_menu = target.addMenu(text)
         if object_name:
             new_menu.setObjectName(object_name)
@@ -435,37 +506,57 @@ class MainWindow(QMainWindow):
             elif action and isinstance(action, QAbstractButton):
                 target.addButton(action)
 
-    def update_file(self):
-        self.add_actions(self.file_menu, self.file_menu_actions)
+    def update_file_menu(self):
+        self.file_menu.clear()
+        self.file_menu.addAction(self.file_menu_actions[0])
+        recent_files_menu = self.file_menu.addMenu("打开最近的文件(T)...")
+
+        if self.recent_files:
+            for i, file_name in enumerate(self.recent_files):
+                dir_file_name = file_name.split("/")[-1]
+                action = self.create_action(str(i+1) + " " + dir_file_name, slot=self._open_file_from_recent)
+                action.setData(QVariant(file_name))
+                recent_files_menu.addAction(action)
+            recent_files_menu.addSeparator()
+        remove_action = self.create_action("清空最近打开的文件列表", slot=self.remove_recent_files)
+        recent_files_menu.addAction(remove_action)
+
+        self.add_actions(self.file_menu, self.file_menu_actions[1:])
 
     def open_file(self):
-        if True:
-            dir_ = os.path.dirname(self.file_name) if self.file_name else "."
-
-            # file_format = ["*.%s" % format_.lower() for format_ in QImageReader.supportedImageFormats()]
-            file_format = "*.png *.jpg *.ico"
-            # 打开一个 文件选择对口框
-            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_,
-                                                    "Image files (%s)" % " ".join(file_format))[0]
-            if file_name:
-                self._load_file(file_name)
+        
+        dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
+        # 打开一个 文件选择对口框
+        file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico)")[0]
+        if file_name:
+            self._load_file(file_name)
 
     def _load_file(self, file_name):
-        print(file_name)
-        if file_name:
+        if file_name and file_name not in self.opening_files.keys():
             image = QImage(file_name)
             if image.isNull():
                 message = "打开文件 %s 失败" % file_name
             else:
                 self.image = QImage()
                 self.image = image
-                self.file_name = file_name
-                self.create_new_tab()
-                self.dirty = False
+                self.opening_files[file_name] = False
+                self.add_recent_file(file_name)
+                self.create_new_tab(file_name)
                 message = "打开文件 %s 成功" % file_name
-        # self.updateStatus(message)
+        elif file_name in self.opening_files.keys():
+            message = "文件 %s 已经打开" % file_name
+            self.center_tab_widget.setCurrentIndex(self.opening_files.index(file_name))
+        else:
+            message = ""
+        self.statusBar().showMessage(message, 5000)
 
-    def create_new_tab(self):
+    def _open_file_from_recent(self):
+        sender = self.sender()
+        if isinstance(sender, QAction):
+            file_name = sender.data()
+            self._load_file(file_name)
+
+    def create_new_tab(self, file_name):
         new_tab = QWidget()
         tab_vertical_layout = QVBoxLayout(new_tab)
 
@@ -474,19 +565,57 @@ class MainWindow(QMainWindow):
         image_label.setPixmap(QPixmap.fromImage(self.image))
         tab_vertical_layout.addWidget(image_label)
 
-        tab_text = self.file_name.split("/")[-1]
+        tab_text = file_name.split("/")[-1]
         self.center_tab_widget.addTab(new_tab, tab_text)
+        self.center_tab_widget.setCurrentWidget(new_tab)
+        self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
 
-    def clear_open_history(self):
-        pass
+    def add_recent_file(self, file_name):
+        if file_name:
+            if file_name not in self.recent_files:
+                self.recent_files.insert(0, file_name)
+                while len(self.recent_files) > 10:
+                    self.recent_files.pop()
+            else:
+                self.recent_files.remove(file_name)
+                self.recent_files.insert(0, file_name)
 
-    def close_file(self):
-        pass
+    def remove_recent_files(self):
+        if self.recent_files:
+            self.recent_files.clear()
+
+    def close_file(self, index=None, file_name=None):
+        if index and isinstance(index, int):
+            file_name_ = self.center_tab_widget.tabToolTip(index)
+            if self.opening_files[file_name_]:
+                if not self.is_save_question(file_name_):
+                    return
+            self.center_tab_widget.removeTab(index)
+            self.opening_files.pop(file_name_)
+
+        if file_name is not None:
+            for index in range(self.center_tab_widget.count()):
+                if file_name == self.center_tab_widget.tabToolTip(index):
+                    self.center_tab_widget.removeTab(index)
+                    self.opening_files.pop(file_name)
+                    break
+
+        if isinstance(index, bool) and file_name is None:
+            current_index = self.center_tab_widget.currentIndex()
+            file_name = self.center_tab_widget.tabToolTip(current_index)
+            if self.opening_files[file_name]:
+                if self.is_save_question(file_name):
+                    self.opening_files.pop(file_name)
+                    self.center_tab_widget.removeTab(current_index)
+
+        if self.center_tab_widget.count() == 0:
+            self.file_menu_actions[2].setEnabled(False)
+            self.file_menu_actions[3].setEnabled(False)
 
     def close_all_file(self):
-        pass
+        self.ok_to_continue()
 
-    def save_file(self):
+    def save_file(self, index=None, file_name=None):
         pass
 
     def save_file_as(self):
@@ -561,6 +690,9 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setOrganizationName("LRSM Ltd.")
+    app.setOrganizationDomain("lrsm.eu")
+    app.setApplicationName("LRSMSingleVersion")
     form = MainWindow()
     form.show()
     sys.exit(app.exec_())
