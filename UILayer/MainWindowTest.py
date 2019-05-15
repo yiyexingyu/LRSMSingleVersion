@@ -5,7 +5,9 @@ import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from ..Application.App import BASE_DIR
+
+from LRSMSingleVersion.Application.App import BASE_DIR
+from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget
 
 __version__ = "1.0.0"
 
@@ -16,16 +18,8 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(parent)
 
         # self.images = []
-        # self.current_tab = 0
-        # # 是否存在未保存的修改
-        # self.dirty = []
         # # 没有图片还是有尚未保存的新创建的图片 当前打开的文件
-        # self.opening_files = {}
-
-        # 图片的垂直镜像
-        self.mirrored_vertically = False
-        # 水平镜像
-        self.mirrored_horizontally = False
+        self.opening_files = []
 
         # 窗体的中心 使用 QTabWidget # 中心部件
         self.center_tab_widget = QTabWidget(self)
@@ -34,7 +28,7 @@ class MainWindow(QMainWindow):
         self.center_tab_widget.tabCloseRequested.connect(self.close_file)
 
         self.center_tab_widget.setContextMenuPolicy(Qt.ActionsContextMenu)
-        self.setCentralWidget(self.center_tab_widget)   # 设置此label为窗口的
+        self.setCentralWidget(self.center_tab_widget)  # 设置此label为窗口的
 
         # 设置MenuBar
         self.menubar = self.menuBar()
@@ -111,10 +105,6 @@ class MainWindow(QMainWindow):
         if self.ok_to_continue():
             settings = QSettings()
 
-            # 当前打开的文件
-            file_names = QVariant(list(self.opening_files.keys())) if self.opening_files else QVariant()
-            settings.setValue("previous_files", file_names)
-
             # 最近打开文件
             recently_files = QVariant(self.recent_files) if self.recent_files else QVariant()
             settings.setValue("recent_files", recently_files)
@@ -126,20 +116,10 @@ class MainWindow(QMainWindow):
 
     # 用户关闭窗口前提问
     def ok_to_continue(self):
-        result = [True]
-        file_names = list(self.opening_files.keys())
-
-        for file in file_names:
-            if self.opening_files[file]:
-                tip_text = "要在退出前保存对 图片\"" + file.split("/")[-1] + "\"的更改吗？"
-                reply = QMessageBox.question(self, "遥感地图标注 - 未保存提示", tip_text,
-                                             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
-                if reply == QMessageBox.Cancel:
-                    return False
-                elif reply == QMessageBox.Yes:
-                    self.save_file(file)
-                else:
-                    self.close_file(file_name=file)
+        tab_num = self.center_tab_widget.count()
+        for _ in range(tab_num):
+            if not self.close_file(index=0):
+                return False
         return True
 
     def is_save_question(self, file_name):
@@ -241,7 +221,8 @@ class MainWindow(QMainWindow):
         convex_outline_action = self.create_action("凸性缺陷轮廓(C)", self.outline_detect, "Ctrl+A+C", signal="toggled")
         polygon_outline_action = self.create_action("多边形轮廓(P)", self.outline_detect, "Ctrl+A+P", signal="toggled")
         self.join_group(QActionGroup(self), (origin_outline_action, convex_outline_action, polygon_outline_action))
-        self.add_actions(self.outline_detect_menu, (origin_outline_action, convex_outline_action, polygon_outline_action))
+        self.add_actions(self.outline_detect_menu,
+                         (origin_outline_action, convex_outline_action, polygon_outline_action))
 
         # 创建 实验 菜单的二级菜单/动作
         erosion_area_action = self.create_action("侵蚀面积(E)...", self.result_test)
@@ -270,9 +251,11 @@ class MainWindow(QMainWindow):
         add_to_selection_action = self.create_action("", self.change_selection, tip="添加到选区", signal="toggled",
                                                      image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
         remove_from_selection_action = self.create_action("", self.change_selection, tip="从选区移除", signal="toggled",
-                                                    image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+                                                          image=os.path.join(BASE_DIR,
+                                                                             "sources/icons/new_selection.ico"))
         cross_with_selection_action = self.create_action("", self.change_selection, tip="与选区交叉", signal="toggled",
-                                                    image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+                                                         image=os.path.join(BASE_DIR,
+                                                                            "sources/icons/new_selection.ico"))
 
         # 加入组
         self.join_group(QActionGroup(self), (new_selection_action, add_to_selection_action,
@@ -284,7 +267,7 @@ class MainWindow(QMainWindow):
 
         # 消除锯齿 checkbox
         anti_aliasing_checkbox = QCheckBox("消除锯齿")
-        anti_aliasing_checkbox.setChecked(True)   # 默认选择
+        anti_aliasing_checkbox.setChecked(True)  # 默认选择
         anti_aliasing_checkbox.stateChanged.connect(self.anti_aliasing)
         self.quick_select_toolbar.addWidget(anti_aliasing_checkbox)
         self.quick_select_toolbar.addSeparator()
@@ -347,12 +330,13 @@ class MainWindow(QMainWindow):
                                               image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
         self.quick_select_action = self.create_action("", self.change_gadget, tip="快速选择工具(M)", signal="toggled",
                                                       type_="Button", parent=self.gadget_dock_content_widget,
-                                                      image=os.path.join(BASE_DIR, "sources/icons/quick_select_oval.ico"))
+                                                      image=os.path.join(BASE_DIR,
+                                                                         "sources/icons/quick_select_oval.ico"))
         self.grip_action = self.create_action("", self.change_gadget, tip="抓手工具(H)", signal="toggled",
                                               type_="Button", parent=self.gadget_dock_content_widget,
                                               image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
         zoom_action = self.create_action("", self.change_gadget, tip="缩放工具(Z)", signal="toggled",
-                                         type_="Button",   # parent=self.gadget_dock_content_widget,
+                                         type_="Button",  # parent=self.gadget_dock_content_widget,
                                          image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
 
         self.join_group(QButtonGroup(self), (move_tool_action, self.quick_select_action, self.grip_action, zoom_action))
@@ -511,7 +495,7 @@ class MainWindow(QMainWindow):
         if self.recent_files:
             for i, file_name in enumerate(self.recent_files):
                 dir_file_name = file_name.split("/")[-1]
-                action = self.create_action(str(i+1) + " " + dir_file_name, slot=self._open_file_from_recent)
+                action = self.create_action(str(i + 1) + " " + dir_file_name, slot=self._open_file_from_recent)
                 action.setData(QVariant(file_name))
                 recent_files_menu.addAction(action)
             recent_files_menu.addSeparator()
@@ -521,7 +505,6 @@ class MainWindow(QMainWindow):
         self.add_actions(self.file_menu, self.file_menu_actions[1:])
 
     def open_file(self):
-        
         dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
         # 打开一个 文件选择对口框
         file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico)")[0]
@@ -529,20 +512,23 @@ class MainWindow(QMainWindow):
             self._load_file(file_name)
 
     def _load_file(self, file_name):
-        if file_name and file_name not in self.opening_files.keys():
+        file_names = []
+        for index in range(self.center_tab_widget.count()):
+            file_names.append(self.center_tab_widget.widget(index).get_file_name())
+
+        if file_name and file_name not in file_names:
             image = QImage(file_name)
             if image.isNull():
                 message = "打开文件 %s 失败" % file_name
             else:
                 self.image = QImage()
                 self.image = image
-                self.opening_files[file_name] = False
                 self.add_recent_file(file_name)
                 self.create_new_tab(file_name)
                 message = "打开文件 %s 成功" % file_name
-        elif file_name in self.opening_files.keys():
+        elif file_name in file_names:
             message = "文件 %s 已经打开" % file_name
-            self.center_tab_widget.setCurrentIndex(self.opening_files.index(file_name))
+            self.center_tab_widget.setCurrentIndex(file_names.index(file_name))
         else:
             message = ""
         self.statusBar().showMessage(message, 5000)
@@ -554,18 +540,13 @@ class MainWindow(QMainWindow):
             self._load_file(file_name)
 
     def create_new_tab(self, file_name):
-        new_tab = QWidget()
-        tab_vertical_layout = QVBoxLayout(new_tab)
-
-        image_label = QLabel("image_label")
-        image_label.setAlignment(Qt.AlignCenter)
-        image_label.setPixmap(QPixmap.fromImage(self.image))
-        tab_vertical_layout.addWidget(image_label)
+        new_tab = WorkbenchWidget(file_name=file_name, image=self.image)
 
         tab_text = file_name.split("/")[-1]
         self.center_tab_widget.addTab(new_tab, tab_text)
         self.center_tab_widget.setCurrentWidget(new_tab)
         self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
+        self.update_close_button_enabled()
 
     def add_recent_file(self, file_name):
         if file_name:
@@ -581,33 +562,27 @@ class MainWindow(QMainWindow):
         if self.recent_files:
             self.recent_files.clear()
 
-    def close_file(self, index=None, file_name=None):
-        if index and isinstance(index, int):
-            file_name_ = self.center_tab_widget.tabToolTip(index)
-            if self.opening_files[file_name_]:
-                if not self.is_save_question(file_name_):
-                    return
+    def close_file(self, index=None):
+        if index is not None and isinstance(index, int):
+            tab_widget = self.center_tab_widget.widget(index)
+            if tab_widget.is_dirty():
+                if not self.is_save_question(tab_widget.get_file_name()):
+                    return False
             self.center_tab_widget.removeTab(index)
-            self.opening_files.pop(file_name_)
 
-        if file_name is not None:
-            for index in range(self.center_tab_widget.count()):
-                if file_name == self.center_tab_widget.tabToolTip(index):
-                    self.center_tab_widget.removeTab(index)
-                    self.opening_files.pop(file_name)
-                    break
-
-        if isinstance(index, bool) and file_name is None:
+        if index and isinstance(index, bool):
             current_index = self.center_tab_widget.currentIndex()
-            file_name = self.center_tab_widget.tabToolTip(current_index)
-            if self.opening_files[file_name]:
-                if self.is_save_question(file_name):
-                    self.opening_files.pop(file_name)
+            current_widget = self.center_tab_widget.currentWidget()
+            if current_widget.is_dirty():
+                if self.is_save_question(current_index):
                     self.center_tab_widget.removeTab(current_index)
+        self.update_close_button_enabled()
+        return True
 
-        if self.center_tab_widget.count() == 0:
-            self.file_menu_actions[2].setEnabled(False)
-            self.file_menu_actions[3].setEnabled(False)
+    def update_close_button_enabled(self):
+        is_tab_empty = self.center_tab_widget.count() != 0
+        self.file_menu_actions[2].setEnabled(is_tab_empty)
+        self.file_menu_actions[3].setEnabled(is_tab_empty)
 
     def close_all_file(self):
         self.ok_to_continue()
