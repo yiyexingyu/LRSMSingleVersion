@@ -1,5 +1,4 @@
 import os
-import platform
 import sys
 
 from PyQt5.QtCore import *
@@ -7,7 +6,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from LRSMSingleVersion.Application.App import BASE_DIR
-from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget
+from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget, FileOpenFailException
+from LRSMSingleVersion.UILayer.CustomWidget.GadgetButton import GadgetButton
 
 __version__ = "1.0.0"
 
@@ -16,10 +16,6 @@ class MainWindow(QMainWindow):
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-
-        # self.images = []
-        # # 没有图片还是有尚未保存的新创建的图片 当前打开的文件
-        self.opening_files = []
 
         # 窗体的中心 使用 QTabWidget # 中心部件
         self.center_tab_widget = QTabWidget(self)
@@ -81,6 +77,20 @@ class MainWindow(QMainWindow):
         self.resize(self.screenRect.width(), self.screenRect.height() - 90)
         self._restore_data()
         self.update_file_menu()
+        # self.init_style()
+
+    def init_style(self):
+        # file(":/qss/psblack.qss");
+        # file(":/qss/flatwhite.qss");
+        file = QFile(os.path.join(os.getcwd(), "other/qss/lightblue.qss"))
+        if file.open(QFile.ReadOnly):
+            qss = file.readAll()
+            palette_color = qss.mid(23, 7)
+            print(palette_color)
+            self.setPalette(QPalette(QColor(str(palette_color))))
+            print(qss.data())
+            self.setStyleSheet(str(qss))
+            file.close()
 
     # 数据恢复
     def _restore_data(self):
@@ -91,8 +101,8 @@ class MainWindow(QMainWindow):
 
         if not self.recent_files:
             self.recent_files = []
-        if window_state is not None:
-            self.restoreState(window_state)
+        # if window_state is not None:
+        #     self.restoreState(window_state)
         QTimer.singleShot(0, self._load_initial_file)
 
     # 加载文件数据
@@ -156,6 +166,9 @@ class MainWindow(QMainWindow):
         import_action = self.create_action("导入(M)...", self.import_file)
         export_action = self.create_action("导出(E)...", self.export_file)
         quit_action = self.create_action("退出(Q)", self.quit, "Ctrl+Q")
+
+        close_action.setEnabled(False)
+        close_all_action.setEnabled(False)
         # 先这些动作组织保存起来 等文件菜单aboutToShow时用
         self.file_menu_actions = [open_file_action, None, close_action, close_all_action,
                                   None, save_action, save_as_action, None, import_action,
@@ -179,9 +192,9 @@ class MainWindow(QMainWindow):
         self.rotate_menu = self.graph_menu.addMenu("图像旋转(G)")
 
         # 创建图像菜单的二级菜单 模式 的二级动作
-        bmp_action = self.create_action("位图(B)", self.graph_mode, signal="toggled")
-        gray_action = self.create_action("灰度(G)", self.graph_mode, signal="toggled")
-        rgb_action = self.create_action("位图(B)", self.graph_mode, signal="toggled")
+        bmp_action = self.create_action("位图(B)", self.graph_mode, signal="toggled", checkable=True)
+        gray_action = self.create_action("灰度(G)", self.graph_mode, signal="toggled", checkable=True)
+        rgb_action = self.create_action("位图(B)", self.graph_mode, signal="toggled", checkable=True)
         # 将这三个动作作为一个动作组
         self.join_group(QActionGroup(self), (bmp_action, gray_action, rgb_action))
         rgb_action.setChecked(True)  # 默认是rbg模式
@@ -211,15 +224,18 @@ class MainWindow(QMainWindow):
         self.layer_menu.addAction(new_layer_action)
 
         # 创建 标注菜单 的二级菜单 快速选择工具 的二级动作
-        rectangle_action = self.create_action("矩形选择框", self.switch_select_tool, signal="toggled")
-        oval_action = self.create_action("椭圆选择框", self.switch_select_tool, signal="toggled")
+        rectangle_action = self.create_action("矩形选择框", self.switch_select_tool, signal="toggled", checkable=True)
+        oval_action = self.create_action("椭圆选择框", self.switch_select_tool, signal="toggled", checkable=True)
         self.join_group(QActionGroup(self), (rectangle_action, oval_action))
         self.add_actions(self.quick_select_menu, (rectangle_action, oval_action))
 
         # 创建 标注菜单 的二级菜单 轮廓检测 的二级动作
-        origin_outline_action = self.create_action("原始轮廓(O)", self.outline_detect, "Ctrl+A+O", signal="toggled")
-        convex_outline_action = self.create_action("凸性缺陷轮廓(C)", self.outline_detect, "Ctrl+A+C", signal="toggled")
-        polygon_outline_action = self.create_action("多边形轮廓(P)", self.outline_detect, "Ctrl+A+P", signal="toggled")
+        origin_outline_action = self.create_action("原始轮廓(O)", self.outline_detect, "Ctrl+A+O",
+                                                   signal="toggled", checkable=True)
+        convex_outline_action = self.create_action("凸性缺陷轮廓(C)", self.outline_detect, "Ctrl+A+C",
+                                                   signal="toggled", checkable=True)
+        polygon_outline_action = self.create_action("多边形轮廓(P)", self.outline_detect, "Ctrl+A+P",
+                                                    signal="toggled", checkable=True)
         self.join_group(QActionGroup(self), (origin_outline_action, convex_outline_action, polygon_outline_action))
         self.add_actions(self.outline_detect_menu,
                          (origin_outline_action, convex_outline_action, polygon_outline_action))
@@ -246,16 +262,18 @@ class MainWindow(QMainWindow):
         self.quick_select_toolbar.setStyleSheet(quick_select_toolbar_stylesheet)
 
         # 选区操作
-        new_selection_action = self.create_action("", self.change_selection, tip="新建选区", signal="toggled",
+        new_selection_action = self.create_action("", self.change_selection, tip="新建选区",
+                                                  signal="toggled",  checkable=True,
                                                   image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
-        add_to_selection_action = self.create_action("", self.change_selection, tip="添加到选区", signal="toggled",
+        add_to_selection_action = self.create_action("", self.change_selection, tip="添加到选区",
+                                                     signal="toggled", checkable=True,
                                                      image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
-        remove_from_selection_action = self.create_action("", self.change_selection, tip="从选区移除", signal="toggled",
-                                                          image=os.path.join(BASE_DIR,
-                                                                             "sources/icons/new_selection.ico"))
-        cross_with_selection_action = self.create_action("", self.change_selection, tip="与选区交叉", signal="toggled",
-                                                         image=os.path.join(BASE_DIR,
-                                                                            "sources/icons/new_selection.ico"))
+        remove_from_selection_action = self.create_action("", self.change_selection, tip="从选区移除",
+                                                          signal="toggled", checkable=True,
+                                                          image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
+        cross_with_selection_action = self.create_action("", self.change_selection, tip="与选区交叉",
+                                                         signal="toggled", checkable=True,
+                                                         image=os.path.join(BASE_DIR, "sources/icons/new_selection.ico"))
 
         # 加入组
         self.join_group(QActionGroup(self), (new_selection_action, add_to_selection_action,
@@ -313,6 +331,31 @@ class MainWindow(QMainWindow):
 
     # 创建停靠窗口
     def _create_gadget_dock_widget(self):
+
+        def select_quick_select_tool(selected):
+            if selected == RECT_QUICK_SELECT_TOOL:
+                self.quick_select_action.setToolTip("矩形选择框(M)")
+                self.quick_select_action.setStatusTip("矩形选择框(M)")
+                self.quick_select_action.setIcon(
+                    QIcon(os.path.join(BASE_DIR, "sources/icons/quick_select_rectangle.ico")))
+            elif selected == ELLIPSE_QUICK_SELECT_TOOL:
+                self.quick_select_action.setToolTip("椭圆选择框(M)")
+                self.quick_select_action.setStatusTip("椭圆选择框(M)")
+                self.quick_select_action.setIcon(
+                    QIcon(os.path.join(BASE_DIR, "sources/icons/quick_select_oval.ico")))
+
+        def select_grip_tool(selected):
+            if selected == GRIP_TONGS:
+                self.grip_action.setToolTip("抓手工具(H)")
+                self.grip_action.setStatusTip("抓手工具(H)")
+                self.grip_action.setIcon(
+                    QIcon(os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico")))
+            elif selected == GRIP_ROTATE:
+                self.grip_action.setToolTip("视图旋转工具(R)")
+                self.grip_action.setStatusTip("视图旋转工具(R)")
+                self.grip_action.setIcon(
+                    QIcon(os.path.join(BASE_DIR, "sources/icons/rotate.ico")))
+
         self.verticalLayout = QVBoxLayout(self.gadget_dock_content_widget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
@@ -320,27 +363,47 @@ class MainWindow(QMainWindow):
         gadget_dock_widget_stylesheet = """
         QPushButton { 
             border: 0;
-            padding: 0 8px;
+            padding: 8px;
+        }
+        QPushButton:hover{
+            background-color: rgb(151, 151, 151)
+        }
+        QPushButton:checked{
+            background-color: rgb(151, 151, 151)
         }
         """
         self.gadget_dock_content_widget.setStyleSheet(gadget_dock_widget_stylesheet)
 
-        move_tool_action = self.create_action("", self.change_gadget, tip="移动工具(V)", signal="toggled",
-                                              type_="Button", parent=self.gadget_dock_content_widget,
-                                              image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
-        self.quick_select_action = self.create_action("", self.change_gadget, tip="快速选择工具(M)", signal="toggled",
-                                                      type_="Button", parent=self.gadget_dock_content_widget,
-                                                      image=os.path.join(BASE_DIR,
-                                                                         "sources/icons/quick_select_oval.ico"))
-        self.grip_action = self.create_action("", self.change_gadget, tip="抓手工具(H)", signal="toggled",
-                                              type_="Button", parent=self.gadget_dock_content_widget,
-                                              image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
-        zoom_action = self.create_action("", self.change_gadget, tip="缩放工具(Z)", signal="toggled",
-                                         type_="Button",  # parent=self.gadget_dock_content_widget,
-                                         image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
+        quick_select_context_menu = (
+            ("矩形选框工具", RECT_QUICK_SELECT_TOOL),
+            ("椭圆选框工具", ELLIPSE_QUICK_SELECT_TOOL)
+        )
+        grip_context_menu = (
+            ("抓手工具(H)", GRIP_TONGS),
+            ("视图旋转工具(H)", GRIP_ROTATE)
+        )
+
+        move_tool_action = self.create_context_button(slot=self.change_selection, tip="移动工具(V)",
+                                                      parent=self.gadget_dock_content_widget,
+                                                      image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
+        self.quick_select_action = self.create_context_button(context_menu=quick_select_context_menu,
+                                                              context_slot=select_quick_select_tool,
+                                                              slot=self.change_gadget, tip="椭圆选择框(M)",
+                                                              parent=self.gadget_dock_content_widget,
+                                                              image=os.path.join(BASE_DIR,
+                                                                                 "sources/icons/quick_select_oval.ico"))
+        self.grip_action = self.create_context_button(context_menu=grip_context_menu,
+                                                      context_slot=select_grip_tool,
+                                                      slot=self.tongs, tip="抓手工具(H)",
+                                                      parent=self.gadget_dock_content_widget,
+                                                      image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
+        zoom_action = self.create_context_button(slot=self.zoom, tip="缩放工具(Z)",
+                                                 parent=self.gadget_dock_content_widget,
+                                                 image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
 
         self.join_group(QButtonGroup(self), (move_tool_action, self.quick_select_action, self.grip_action, zoom_action))
 
+        zoom_action.setChecked(True)
         self.verticalLayout.addWidget(move_tool_action, alignment=Qt.AlignLeft)
         self.verticalLayout.addWidget(self.quick_select_action, alignment=Qt.AlignLeft)
         self.verticalLayout.addWidget(self.grip_action, alignment=Qt.AlignLeft)
@@ -418,12 +481,9 @@ class MainWindow(QMainWindow):
         return new_dock_widget, dock_widget_content
 
     # 创建动作
-    def create_action(self, text, slot=None, shortcut=None, tip=None, type_="QAction",
-                      icon=None, checkable=False, signal="triggered", image=None, parent=None):
-        if type_ == "QAction":
-            new_action = QAction(text, self)
-        else:
-            new_action = QPushButton(text, parent)
+    def create_action(self, text, slot=None, shortcut=None, tip=None, icon=None,
+                      checkable=False, signal="triggered", image=None):
+        new_action = QAction(text, self)
 
         if icon:
             new_action.setIcon(QIcon(icon))
@@ -443,12 +503,42 @@ class MainWindow(QMainWindow):
             new_action.setIcon(QIcon(image))
         return new_action
 
-    def create_slider(self, minimum=0, maximum=255, step=1, tick_position=QSlider.TicksAbove, slot=None):
+    @staticmethod
+    def create_context_button(context_menu=None, context_slot=None, slot=None, checkable=True,
+                              image=None, tip=None, signal="toggled", parent=None):
+        new_action = GadgetButton(context_menu, context_slot, parent)
+        if checkable:
+            new_action.setCheckable(True)
+        if tip:
+            new_action.setToolTip(tip)
+            new_action.setStatusTip(tip)
+        if slot and callable(slot):
+            if signal == "clicked":
+                new_action.clicked.connect(slot)
+            elif signal == "toggled":
+                new_action.toggled.connect(slot)
+        if image:
+            new_action.setIcon(QIcon(image))
+        return new_action
+
+    def create_slider(self, minimum=0, maximum=255, step=1,
+                      tick_position=QSlider.TicksAbove, slot=None):
+
         new_slider = QSlider(Qt.Horizontal, self.color_dock_content_widget)
         new_slider.setRange(minimum, maximum)
         new_slider.setSingleStep(step)
         new_slider.setFixedWidth(110)
         new_slider.setTickPosition(tick_position)
+        new_slider.setStyleSheet("QSlider::groove:horizontal {\n"
+"        height: 6px;\n"
+"        background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 rgb(255, 255, 255), stop: 1.0 rgb(0, 0, 0));\n"
+"}\n"
+"QSlider::handle:horizontal {\n"
+"        width: 8px;\n"
+"        background: rgb(0, 160, 230);\n"
+"        margin: -6px 0px -6px 0px;\n"
+"        border-radius: 9px;\n"
+"}")
         if slot and callable(slot):
             new_slider.valueChanged.connect(slot)
         return new_slider
@@ -504,59 +594,52 @@ class MainWindow(QMainWindow):
 
         self.add_actions(self.file_menu, self.file_menu_actions[1:])
 
-    def open_file(self):
-        dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
-        # 打开一个 文件选择对口框
-        file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico)")[0]
+    def open_file(self, file_name=None):
+        if file_name is None or isinstance(file_name, bool):
+            dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
+            # 打开一个 文件选择对口框
+            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico)")[0]
+
         if file_name:
-            self._load_file(file_name)
+            file_names = []
+            for index in range(self.center_tab_widget.count()):
+                file_names.append(self.center_tab_widget.widget(index).get_file_name())
 
-    def _load_file(self, file_name):
-        file_names = []
-        for index in range(self.center_tab_widget.count()):
-            file_names.append(self.center_tab_widget.widget(index).get_file_name())
-
-        if file_name and file_name not in file_names:
-            image = QImage(file_name)
-            if image.isNull():
-                message = "打开文件 %s 失败" % file_name
+            if file_name not in file_names:
+                message = self.create_new_tab(file_name)
             else:
-                self.image = QImage()
-                self.image = image
-                self.add_recent_file(file_name)
-                self.create_new_tab(file_name)
-                message = "打开文件 %s 成功" % file_name
-        elif file_name in file_names:
-            message = "文件 %s 已经打开" % file_name
-            self.center_tab_widget.setCurrentIndex(file_names.index(file_name))
-        else:
-            message = ""
-        self.statusBar().showMessage(message, 5000)
+                message = "文件 %s 已经打开" % file_name
+                self.center_tab_widget.setCurrentIndex(file_names.index(file_name))
+            self.statusBar().showMessage(message, 5000)
 
     def _open_file_from_recent(self):
         sender = self.sender()
         if isinstance(sender, QAction):
             file_name = sender.data()
-            self._load_file(file_name)
+            self.open_file(file_name)
 
     def create_new_tab(self, file_name):
-        new_tab = WorkbenchWidget(file_name=file_name, image=self.image)
-
-        tab_text = file_name.split("/")[-1]
-        self.center_tab_widget.addTab(new_tab, tab_text)
-        self.center_tab_widget.setCurrentWidget(new_tab)
-        self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
-        self.update_close_button_enabled()
+        try:
+            new_tab = WorkbenchWidget(file_name=file_name)
+            tab_text = file_name.split("/")[-1]
+            self.center_tab_widget.addTab(new_tab, tab_text)
+            self.center_tab_widget.setCurrentWidget(new_tab)
+            self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
+            self.update_close_button_enabled()
+            self.add_recent_file(file_name)
+            return "打开文件\"" + file_name + "\"成功"
+        except FileOpenFailException as e:
+            return e.message
+        finally:
+            return " "
 
     def add_recent_file(self, file_name):
         if file_name:
-            if file_name not in self.recent_files:
-                self.recent_files.insert(0, file_name)
-                while len(self.recent_files) > 10:
-                    self.recent_files.pop()
-            else:
+            if file_name in self.recent_files:
                 self.recent_files.remove(file_name)
-                self.recent_files.insert(0, file_name)
+            self.recent_files.insert(0, file_name)
+            while len(self.recent_files) > 10:
+                self.recent_files.pop()
 
     def remove_recent_files(self):
         if self.recent_files:
@@ -569,13 +652,15 @@ class MainWindow(QMainWindow):
                 if not self.is_save_question(tab_widget.get_file_name()):
                     return False
             self.center_tab_widget.removeTab(index)
+            del tab_widget
 
-        if index and isinstance(index, bool):
+        if index and isinstance(index, bool) and self.center_tab_widget.count() != 0:
             current_index = self.center_tab_widget.currentIndex()
             current_widget = self.center_tab_widget.currentWidget()
             if current_widget.is_dirty():
                 if self.is_save_question(current_index):
                     self.center_tab_widget.removeTab(current_index)
+                    del current_widget
         self.update_close_button_enabled()
         return True
 
@@ -659,6 +744,19 @@ class MainWindow(QMainWindow):
     def color_setting(self):
         pass
 
+    def zoom(self):
+        pass
+
+    def tongs(self):
+        pass
+
+
+RECT_QUICK_SELECT_TOOL = 1
+ELLIPSE_QUICK_SELECT_TOOL = 2
+
+GRIP_TONGS = 3
+GRIP_ROTATE = 4
+
 
 def main():
     app = QApplication(sys.argv)
@@ -672,7 +770,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
