@@ -6,8 +6,11 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from LRSMSingleVersion.Application.App import BASE_DIR
+
+from LRSMSingleVersion.UILayer.CustomWidget.GadgetDockWidget import GadgetDockWidget
+from LRSMSingleVersion.UILayer.CustomWidget.ColorDockWidget import ColorDockWidget
+from LRSMSingleVersion.UILayer.CustomWidget.LayerDockWidget import LayerDockWidget
 from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget, FileOpenFailException
-from LRSMSingleVersion.UILayer.CustomWidget.GadgetButton import GadgetButton
 
 __version__ = "1.0.0"
 
@@ -17,6 +20,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
+        self.current_gadget = None
         # 窗体的中心 使用 QTabWidget # 中心部件
         self.center_tab_widget = QTabWidget(self)
         self.center_tab_widget.setMovable(True)
@@ -34,31 +38,19 @@ class MainWindow(QMainWindow):
 
         # 创建 main window的停靠窗口
         dock_widget_limit = Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea
-
-        # 创建 gadget_dock_window 停靠窗口
-        self.gadget_dock_widget, self.gadget_dock_content_widget = \
-            self.create_dock_widget(" ", "gadget_dock_window", "gadget_dock_content_widget")
-        self.gadget_dock_widget.setAllowedAreas(dock_widget_limit)
-        self._create_gadget_dock_widget()
-        self.gadget_dock_widget.setWidget(self.gadget_dock_content_widget)
+        self.gadget_dock_widget = GadgetDockWidget(parent=self)
         self.gadget_dock_widget.setMaximumSize(36, 1026)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.gadget_dock_widget)
 
         # 创建颜色设置的停靠窗口
-        self.color_dock_widget, self.color_dock_content_widget = \
-            self.create_dock_widget("颜色", "color_dock_widget", "color_dock_content_widget")
+        self.color_dock_widget = ColorDockWidget(parent=parent)
         self.color_dock_widget.setAllowedAreas(dock_widget_limit)
         self.color_dock_widget.setFixedSize(200, 140)
-        self._create_color_dock_widget()
-        self.color_dock_widget.setWidget(self.color_dock_content_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, self.color_dock_widget)
 
         # 创建图层停靠窗口
-        self.layer_dock_widget, self.layer_dock_content_widget = \
-            self.create_dock_widget("图层", "layer_dock_widget", "layer_dock_content_widget")
+        self.layer_dock_widget = LayerDockWidget(parent=self)
         self.layer_dock_widget.setAllowedAreas(dock_widget_limit)
-        self._create_layer_dock_widget()
-        self.layer_dock_widget.setWidget(self.layer_dock_content_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, self.layer_dock_widget)
 
         # 状态栏相关
@@ -98,7 +90,6 @@ class MainWindow(QMainWindow):
         self.recent_files = settings.value("recent_files")
 
         window_state = settings.value("main_window/state")
-
         if not self.recent_files:
             self.recent_files = []
         # if window_state is not None:
@@ -118,7 +109,6 @@ class MainWindow(QMainWindow):
             # 最近打开文件
             recently_files = QVariant(self.recent_files) if self.recent_files else QVariant()
             settings.setValue("recent_files", recently_files)
-
             # 主窗口的其他状态
             settings.setValue("main_window/state", QVariant(self.saveState()))
         else:
@@ -329,150 +319,6 @@ class MainWindow(QMainWindow):
         adjust_edge_action = self.create_action(r"调整边缘...", self.adjust_edge)
         self.quick_select_toolbar.addAction(adjust_edge_action)
 
-    # 创建停靠窗口
-    def _create_gadget_dock_widget(self):
-
-        def select_quick_select_tool(selected):
-            if selected == RECT_QUICK_SELECT_TOOL:
-                self.quick_select_action.setToolTip("矩形选择框(M)")
-                self.quick_select_action.setStatusTip("矩形选择框(M)")
-                self.quick_select_action.setIcon(
-                    QIcon(os.path.join(BASE_DIR, "sources/icons/quick_select_rectangle.ico")))
-            elif selected == ELLIPSE_QUICK_SELECT_TOOL:
-                self.quick_select_action.setToolTip("椭圆选择框(M)")
-                self.quick_select_action.setStatusTip("椭圆选择框(M)")
-                self.quick_select_action.setIcon(
-                    QIcon(os.path.join(BASE_DIR, "sources/icons/quick_select_oval.ico")))
-
-        def select_grip_tool(selected):
-            if selected == GRIP_TONGS:
-                self.grip_action.setToolTip("抓手工具(H)")
-                self.grip_action.setStatusTip("抓手工具(H)")
-                self.grip_action.setIcon(
-                    QIcon(os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico")))
-            elif selected == GRIP_ROTATE:
-                self.grip_action.setToolTip("视图旋转工具(R)")
-                self.grip_action.setStatusTip("视图旋转工具(R)")
-                self.grip_action.setIcon(
-                    QIcon(os.path.join(BASE_DIR, "sources/icons/rotate.ico")))
-
-        self.verticalLayout = QVBoxLayout(self.gadget_dock_content_widget)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout.setObjectName("verticalLayout")
-
-        gadget_dock_widget_stylesheet = """
-        QPushButton { 
-            border: 0;
-            padding: 8px;
-        }
-        QPushButton:hover{
-            background-color: rgb(151, 151, 151)
-        }
-        QPushButton:checked{
-            background-color: rgb(151, 151, 151)
-        }
-        """
-        self.gadget_dock_content_widget.setStyleSheet(gadget_dock_widget_stylesheet)
-
-        quick_select_context_menu = (
-            ("矩形选框工具", RECT_QUICK_SELECT_TOOL),
-            ("椭圆选框工具", ELLIPSE_QUICK_SELECT_TOOL)
-        )
-        grip_context_menu = (
-            ("抓手工具(H)", GRIP_TONGS),
-            ("视图旋转工具(H)", GRIP_ROTATE)
-        )
-
-        move_tool_action = self.create_context_button(slot=self.change_selection, tip="移动工具(V)",
-                                                      parent=self.gadget_dock_content_widget,
-                                                      image=os.path.join(BASE_DIR, "sources/icons/move_select.ico"))
-        self.quick_select_action = self.create_context_button(context_menu=quick_select_context_menu,
-                                                              context_slot=select_quick_select_tool,
-                                                              slot=self.change_gadget, tip="椭圆选择框(M)",
-                                                              parent=self.gadget_dock_content_widget,
-                                                              image=os.path.join(BASE_DIR,
-                                                                                 "sources/icons/quick_select_oval.ico"))
-        self.grip_action = self.create_context_button(context_menu=grip_context_menu,
-                                                      context_slot=select_grip_tool,
-                                                      slot=self.tongs, tip="抓手工具(H)",
-                                                      parent=self.gadget_dock_content_widget,
-                                                      image=os.path.join(BASE_DIR, "sources/icons/cursor_hand.ico"))
-        zoom_action = self.create_context_button(slot=self.zoom, tip="缩放工具(Z)",
-                                                 parent=self.gadget_dock_content_widget,
-                                                 image=os.path.join(BASE_DIR, "sources/icons/zoom.ico"))
-
-        self.join_group(QButtonGroup(self), (move_tool_action, self.quick_select_action, self.grip_action, zoom_action))
-
-        zoom_action.setChecked(True)
-        self.verticalLayout.addWidget(move_tool_action, alignment=Qt.AlignLeft)
-        self.verticalLayout.addWidget(self.quick_select_action, alignment=Qt.AlignLeft)
-        self.verticalLayout.addWidget(self.grip_action, alignment=Qt.AlignLeft)
-        self.verticalLayout.addWidget(zoom_action, alignment=Qt.AlignLeft)
-        spacer_item1 = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.verticalLayout.addItem(spacer_item1)
-
-    def _create_color_dock_widget(self):
-
-        def create_rgb_color_item(label_text):
-            # 创建验证器 对输入进行预防验证
-            validator = QRegExpValidator(QRegExp(r"25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9]"), self)
-
-            color_slider = self.create_slider(slot=self.color_setting)
-            color_label = QLabel(label_text, self.color_dock_content_widget)
-            color_label.setBuddy(color_slider)
-            color_label.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-
-            color_input = QLineEdit(self.color_dock_content_widget)
-            color_input.setMaxLength(3)
-            color_input.setValidator(validator)
-            color_input.setFixedWidth(50)
-            color_input.setText("0")
-            return color_label, color_slider, color_input
-
-        color_dock_widget_stylesheet = """
-        QLineEdit { margin-right: 10px ;}
-        """
-        self.color_dock_content_widget.setStyleSheet(color_dock_widget_stylesheet)
-
-        r_color_label, r_color_slider, r_color_input = create_rgb_color_item("R")
-        g_color_label, g_color_slider, g_color_input = create_rgb_color_item("G")
-        b_color_label, b_color_slider, b_color_input = create_rgb_color_item("B")
-
-        self.color_dock_grid_layout = QGridLayout(self.color_dock_content_widget)
-        self.color_dock_grid_layout.setContentsMargins(0, 0, 0, 0)
-        self.color_dock_grid_layout.setObjectName("color_dock_grid_layout")
-
-        self.color_dock_grid_layout.addWidget(r_color_label, 0, 0)
-        self.color_dock_grid_layout.addWidget(r_color_slider, 0, 1)
-        self.color_dock_grid_layout.addWidget(r_color_input, 0, 2)
-
-        self.color_dock_grid_layout.addWidget(g_color_label, 1, 0)
-        self.color_dock_grid_layout.addWidget(g_color_slider, 1, 1)
-        self.color_dock_grid_layout.addWidget(g_color_input, 1, 2)
-
-        self.color_dock_grid_layout.addWidget(b_color_label, 2, 0)
-        self.color_dock_grid_layout.addWidget(b_color_slider, 2, 1)
-        self.color_dock_grid_layout.addWidget(b_color_input, 2, 2)
-
-        spacer_item1 = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.color_dock_grid_layout.addItem(spacer_item1, 3, 0, 1, 1)
-
-    def _create_layer_dock_widget(self):
-        self.layer_dock_content_widget.setMinimumSize(150, 180)
-        self.layer_dock_vertical_layout = QVBoxLayout(self.layer_dock_content_widget)
-
-        self.layer_scroll_area = QScrollArea()
-        self.layer_scroll_area.setObjectName("layer_scroll_area")
-        self.layer_scroll_area.setWidgetResizable(True)
-        self.layer_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-
-        self.layer_scroll_area_content = QWidget()
-        self.layer_scroll_area_content.setMinimumSize(150, 180)
-        self.layer_scroll_area_content.setObjectName("layer_scroll_area_content")
-
-        self.layer_scroll_area.setWidget(self.layer_scroll_area_content)
-        self.layer_dock_vertical_layout.addWidget(self.layer_scroll_area)
-
     def create_dock_widget(self, widget_title, dock_widget_name, dock_widget_content_name):
         new_dock_widget = QDockWidget(widget_title, self)
         new_dock_widget.setObjectName(dock_widget_name)
@@ -502,46 +348,6 @@ class MainWindow(QMainWindow):
         if image:
             new_action.setIcon(QIcon(image))
         return new_action
-
-    @staticmethod
-    def create_context_button(context_menu=None, context_slot=None, slot=None, checkable=True,
-                              image=None, tip=None, signal="toggled", parent=None):
-        new_action = GadgetButton(context_menu, context_slot, parent)
-        if checkable:
-            new_action.setCheckable(True)
-        if tip:
-            new_action.setToolTip(tip)
-            new_action.setStatusTip(tip)
-        if slot and callable(slot):
-            if signal == "clicked":
-                new_action.clicked.connect(slot)
-            elif signal == "toggled":
-                new_action.toggled.connect(slot)
-        if image:
-            new_action.setIcon(QIcon(image))
-        return new_action
-
-    def create_slider(self, minimum=0, maximum=255, step=1,
-                      tick_position=QSlider.TicksAbove, slot=None):
-
-        new_slider = QSlider(Qt.Horizontal, self.color_dock_content_widget)
-        new_slider.setRange(minimum, maximum)
-        new_slider.setSingleStep(step)
-        new_slider.setFixedWidth(110)
-        new_slider.setTickPosition(tick_position)
-        new_slider.setStyleSheet("QSlider::groove:horizontal {\n"
-"        height: 6px;\n"
-"        background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 rgb(255, 255, 255), stop: 1.0 rgb(0, 0, 0));\n"
-"}\n"
-"QSlider::handle:horizontal {\n"
-"        width: 8px;\n"
-"        background: rgb(0, 160, 230);\n"
-"        margin: -6px 0px -6px 0px;\n"
-"        border-radius: 9px;\n"
-"}")
-        if slot and callable(slot):
-            new_slider.valueChanged.connect(slot)
-        return new_slider
 
     @staticmethod
     def add_menu(text, target, object_name=None, tip=None, slot=None, signal=None):
@@ -575,7 +381,7 @@ class MainWindow(QMainWindow):
             if action and isinstance(action, QAction):
                 target.addAction(action)
             elif action and isinstance(action, QAbstractButton):
-                target.addButton(action)
+                target.addButton(action, actions.index(action))
 
     def update_file_menu(self):
         self.file_menu.clear()
@@ -598,7 +404,7 @@ class MainWindow(QMainWindow):
         if file_name is None or isinstance(file_name, bool):
             dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
             # 打开一个 文件选择对口框
-            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico)")[0]
+            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico *tif)")[0]
 
         if file_name:
             file_names = []
@@ -620,11 +426,13 @@ class MainWindow(QMainWindow):
 
     def create_new_tab(self, file_name):
         try:
-            new_tab = WorkbenchWidget(file_name=file_name)
+            print(self.gadget_dock_widget.get_current_gadget())
+            new_tab = WorkbenchWidget(file_name=file_name, gadget=self.gadget_dock_widget.get_current_gadget())
             tab_text = file_name.split("/")[-1]
             self.center_tab_widget.addTab(new_tab, tab_text)
             self.center_tab_widget.setCurrentWidget(new_tab)
             self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
+            self.gadget_dock_widget.gadget_changed.connect(new_tab.change_gadget)
             self.update_close_button_enabled()
             self.add_recent_file(file_name)
             return "打开文件\"" + file_name + "\"成功"
@@ -638,8 +446,8 @@ class MainWindow(QMainWindow):
             if file_name in self.recent_files:
                 self.recent_files.remove(file_name)
             self.recent_files.insert(0, file_name)
-            while len(self.recent_files) > 10:
-                self.recent_files.pop()
+            while len(self.recent_files) > 9:
+                print(self.recent_files.pop())
 
     def remove_recent_files(self):
         if self.recent_files:
@@ -749,13 +557,6 @@ class MainWindow(QMainWindow):
 
     def tongs(self):
         pass
-
-
-RECT_QUICK_SELECT_TOOL = 1
-ELLIPSE_QUICK_SELECT_TOOL = 2
-
-GRIP_TONGS = 3
-GRIP_ROTATE = 4
 
 
 def main():

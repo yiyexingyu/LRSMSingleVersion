@@ -5,7 +5,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt, QPoint, QRectF, QRect
 import cv2
 from LRSMSingleVersion.UILayer.Workbench.GraphicsView import GraphicsView
-from LRSMSingleVersion.UILayer.Workbench.BorderItem import BorderItem
+from LRSMSingleVersion.CONST.CONST import *
 
 """
     每个WorkbenchWidget对应一张用户要处理的图片
@@ -16,7 +16,7 @@ class WorkbenchWidget(QWidget):
     """
 
     """
-    def __init__(self, file_name=None, parent=None):
+    def __init__(self, file_name=None, gadget=None, parent=None):
         super(WorkbenchWidget, self).__init__(parent)
 
         self.image_label = QLabel("image_label")
@@ -28,6 +28,7 @@ class WorkbenchWidget(QWidget):
         self.dirty = False
         # 当前工作区的图片数据
         self.image = None
+        self.current_gadget = None
 
         # 图片的垂直镜像
         self.mirrored_vertically = False
@@ -36,8 +37,9 @@ class WorkbenchWidget(QWidget):
         # 创建视图
         self.workbench_view = GraphicsView(self)
         self.workbench_view.setObjectName("workbench_view")
+
         # 创建场景
-        self.workbench_scene = QGraphicsScene(QRectF(0., 0., 800., 600.), self)
+        self.workbench_scene = QGraphicsScene(self)
         self.workbench_scene.setObjectName("workbench_scene")
 
         # 把场景添加到视图中
@@ -48,8 +50,9 @@ class WorkbenchWidget(QWidget):
         self.tab_vertical_layout.addWidget(self.workbench_view)
 
         self._load_image()
-        self.workbench_scene.addRect(QRectF(0., 0., 800., 600.))
-        self.workbench_scene.addRect(QRectF(100., 100., -100., -100.))
+
+        # 当前选择小工具
+        self.change_gadget(gadget)
 
     def get_file_name(self):
         return self.file_name
@@ -58,7 +61,6 @@ class WorkbenchWidget(QWidget):
         return self.dirty
 
     def _load_image(self):
-        start_time = time.time()
         image = QImage(self.file_name)
         # cv2_img = cv2.imread(self.file_name, cv2.IMREAD_COLOR)
         # print(self.file_name)
@@ -66,8 +68,10 @@ class WorkbenchWidget(QWidget):
         # print(cv2_img.shape)
         # # cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
         # image = QImage(cv2_img, cv2_img.shape[1], cv2_img.shape[0], QImage.Format_RGB8888)
-        print(time.time() - start_time)
-
+        print("image.width: ", image.width())
+        print("image.height: ", image.height())
+        print("image.size: ", image.size())
+        self.workbench_scene.setSceneRect(0, 0, image.width(), image.height())
         if image.isNull():
             del self
             raise FileOpenFailException(self.file_name)
@@ -75,6 +79,7 @@ class WorkbenchWidget(QWidget):
             self.image = image
             self.image = QPixmap.fromImage(self.image)
             pixmap_item = QGraphicsPixmapItem(self.image)
+            pixmap_item.setPos(0, 0)
             self.workbench_scene.addItem(pixmap_item)
 
     def rotate(self, angle):
@@ -90,6 +95,21 @@ class WorkbenchWidget(QWidget):
                 self.workbench_scene.removeItem(item)
                 del item
             self.dirty = True
+
+    def change_gadget(self, gadget):
+        self.current_gadget = gadget
+        if self.current_gadget == MOVE_TOOL:
+            self.setCursor(Qt.SizeAllCursor)
+        elif self.current_gadget == RECT_QUICK_SELECT_TOOL or \
+                self.current_gadget == ELLIPSE_QUICK_SELECT_TOOL:
+            self.setCursor(Qt.CrossCursor)
+        elif self.current_gadget == GRIP_TONGS:
+            self.setCursor(Qt.OpenHandCursor)
+        elif self.current_gadget == GRIP_ROTATE:
+            self.setCursor(Qt.SizeFDiagCursor)
+        elif self.current_gadget == ZOOM_TOOL:
+            self.setCursor(Qt.SizeHorCursor)
+        self.workbench_view.set_shape(self.current_gadget)
 
 
 class FileOpenFailException(Exception):

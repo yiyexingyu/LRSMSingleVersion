@@ -1,7 +1,7 @@
 import functools
 from PyQt5.QtWidgets import QPushButton, QMenu, QActionGroup
 from PyQt5.QtGui import QContextMenuEvent, QCursor
-from PyQt5.QtCore import Qt, QPoint
+from LRSMSingleVersion.CONST.CONST import NONE_RES
 
 
 class GadgetButton(QPushButton):
@@ -11,6 +11,7 @@ class GadgetButton(QPushButton):
 
         self.context_menu = None
         if menu_tuple and slot:
+            self.slot = slot
             self.context_menu = QMenu()
             actions = []
             for text, arg in menu_tuple:
@@ -22,12 +23,17 @@ class GadgetButton(QPushButton):
                 for action in actions:
                     action.setCheckable(True)
                     group.addAction(action)
+                actions[0].setChecked(True)
             else:
                 del actions
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self.setChecked(True)
         if self.context_menu:
-            self.context_menu.exec_(QCursor.pos())
-        else:
-            QPushButton.contextMenuEvent(self, event)
+            if self.context_menu.exec_(QCursor.pos()) is not None:
+                event.accept()
+                return
+            else:
+                self.slot(NONE_RES)
+        event.ignore()
+        # QPushButton.contextMenuEvent(self, event)
