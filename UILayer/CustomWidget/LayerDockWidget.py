@@ -12,7 +12,7 @@ class LayerDockWidget(DockWidget):
         self.setObjectName("layer_dock_widget")
         self.content_widget.setObjectName("layer_dock_content_widget")
         self.content_widget.setMinimumSize(150, 180)
-        self.setWidget(self.content_widget)
+
         self._init_content_widget()
 
     def _init_content_widget(self):

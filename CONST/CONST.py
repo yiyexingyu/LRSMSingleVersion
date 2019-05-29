@@ -17,7 +17,7 @@ import struct
 
 
 def t():
-    f = open("D:/t1.txt")
+    f = open("D:/其他/t1.txt")
     text = f.read()
     print(type(text))
     print(len(text))
@@ -62,16 +62,26 @@ def decode(s):
 def test1(bin_text):
     current_bin = bin_text[0]
     new_bin_text = bin_text[0]
+    _len, m = 1, []
     for bt in bin_text[1:]:
         if bt != current_bin:
             new_bin_text += bt
             current_bin = bt
 
+            if _len > 1:
+                m.append(_len)
+            _len = 1
+        else:
+            _len += 1
+
     print(len(new_bin_text))
     print(new_bin_text)
 
-t()
+    print("len: ", len(m))
+    print("m: ", m)
 
+
+# t()
 
 
 

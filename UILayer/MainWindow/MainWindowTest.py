@@ -11,6 +11,8 @@ from LRSMSingleVersion.UILayer.CustomWidget.GadgetDockWidget import GadgetDockWi
 from LRSMSingleVersion.UILayer.CustomWidget.ColorDockWidget import ColorDockWidget
 from LRSMSingleVersion.UILayer.CustomWidget.LayerDockWidget import LayerDockWidget
 from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget, FileOpenFailException
+from LRSMSingleVersion.UILayer.CustomWidget.ProjectTreeDockWidget import ProjectDockWidget
+from LRSMSingleVersion.UILayer.CustomWidget.NewProjectDialog import NewProjectDialog
 
 __version__ = "1.0.0"
 
@@ -42,16 +44,26 @@ class MainWindow(QMainWindow):
         self.gadget_dock_widget.setMaximumSize(36, 1026)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.gadget_dock_widget)
 
-        # 创建颜色设置的停靠窗口
-        self.color_dock_widget = ColorDockWidget(parent=parent)
-        self.color_dock_widget.setAllowedAreas(dock_widget_limit)
-        self.color_dock_widget.setFixedSize(200, 140)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.color_dock_widget)
+        # # 创建颜色设置的停靠窗口
+        # self.color_dock_widget = ColorDockWidget(parent=self)
+        # self.color_dock_widget.setAllowedAreas(dock_widget_limit)
+        # self.color_dock_widget.setFixedSize(200, 140)
+        # self.addDockWidget(Qt.RightDockWidgetArea, self.color_dock_widget)
+        #
+        # # 创建图层停靠窗口
+        # self.layer_dock_widget = LayerDockWidget(parent=self)
+        # self.layer_dock_widget.setAllowedAreas(dock_widget_limit)
+        # self.addDockWidget(Qt.RightDockWidgetArea, self.layer_dock_widget)
 
-        # 创建图层停靠窗口
-        self.layer_dock_widget = LayerDockWidget(parent=self)
-        self.layer_dock_widget.setAllowedAreas(dock_widget_limit)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.layer_dock_widget)
+        # 创建项目目录树 停靠窗口
+        project_info = {
+            "project_name": "testProject",
+            "org_img_name": "北京市"
+        }
+        self.project_dock_widget = ProjectDockWidget(parent=self)
+        # self.project_dock_widget.create_project(project_info)
+        self.project_dock_widget.setAllowedAreas(dock_widget_limit)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.project_dock_widget)
 
         # 状态栏相关
         self.size_label = QLabel()
@@ -68,7 +80,7 @@ class MainWindow(QMainWindow):
 
         self.resize(self.screenRect.width(), self.screenRect.height() - 90)
         self._restore_data()
-        self.update_file_menu()
+        # self.update_file_menu()
         # self.init_style()
 
     def init_style(self):
@@ -141,6 +153,7 @@ class MainWindow(QMainWindow):
         self.file_menu = self.add_menu("文件(F)", self.menubar, "file_menu",
                                        slot=self.update_file_menu, signal="aboutToShow")
         self.edit_menu = self.add_menu("编辑(E)", self.menubar, "edit_menu")
+        self.project_menu = self.add_menu("项目(P)", self.menubar, "project_menu")
         self.graph_menu = self.add_menu("图像(I)", self.menubar, "graph_menu")
         self.mark_menu = self.add_menu("标注(M)", self.menubar, "mark_menu")
         self.test_menu = self.add_menu("实验(T)", self.menubar, "test_menu")
@@ -148,29 +161,52 @@ class MainWindow(QMainWindow):
 
         # 创建文件菜单的二级菜单/动作
         # 由于要显示最近打开的文件 我们要动态的显示这个菜单
-        open_file_action = self.create_action("打开(O)...", self.open_file, "Ctrl+O")
+        new_project_action = self.create_action("新建项目(N)...", self.create_new_project, "Ctrl+N")
+        open_project_action = self.create_action("打开项目(O)...", self.open_project, "Ctrl+O")
+        open_original_image_action = self.create_action("打开原始图片...", self.open_file, "Shift+Ctrl+O")
+
+        save_project_action = self.create_action("保存项目(S)", self.save_file, "Ctrl+S")
+        save_project_as_action = self.create_action("另存为...", self.save_file_as, "Shift+Ctrl+S")
+        save_all_action = self.create_action("保存全部", self.save_all, "Shift+Ctrl+A")
+
+        close_project_action = self.create_action("关闭项目", self.close_project, "Ctrl+P")
         close_action = self.create_action("关闭(C)", self.close_file, "Ctrl+W")
         close_all_action = self.create_action("全部关闭", self.close_all_file, "Alt+Ctrl+W")
-        save_action = self.create_action("保存(S)", self.save_file, "Ctrl+S")
-        save_as_action = self.create_action("保存(S)", self.save_file_as, "Shift+Ctrl+S")
+
         import_action = self.create_action("导入(M)...", self.import_file)
         export_action = self.create_action("导出(E)...", self.export_file)
+        project_info_action = self.create_action("项目简介(F)...", self.project_info)
         quit_action = self.create_action("退出(Q)", self.quit, "Ctrl+Q")
 
         close_action.setEnabled(False)
         close_all_action.setEnabled(False)
+        close_project_action.setEnabled(False)
         # 先这些动作组织保存起来 等文件菜单aboutToShow时用
-        self.file_menu_actions = [open_file_action, None, close_action, close_all_action,
-                                  None, save_action, save_as_action, None, import_action,
-                                  export_action, None, quit_action]
+        self.file_menu_actions = [new_project_action, open_project_action, open_original_image_action,
+                                  None, close_project_action, close_action, close_all_action,
+                                  None, save_project_action, save_project_as_action, save_all_action,
+                                  None, import_action, export_action, None, project_info_action,None, quit_action]
 
         # 创建编辑菜单的二级菜单/动作
         revert_action = self.create_action("还原(O)", self.edit_step, "Ctrl+Z")
         undo_action = self.create_action("后退一步(K)", self.edit_step, "Alt+Ctrl+Z")
         redo_action = self.create_action("前进一步(W)", self.edit_step, "Alt+Ctrl+Z")
         reference_action = self.create_action("首选项(N)...", self.edit_reference)
+        # 创建 编辑菜单 的二级菜单 查找并替换 的二级菜单
+        self.find_replace_menu = self.edit_menu.addMenu("查找和替换(F)")
+        quick_find_action = self.create_action("快速查找(F)", shortcut="Ctrl+F")
+        quick_replace_action = self.create_action("快速替换(R)", shortcut="Ctrl+H")
+        quick_find_in_file_action = self.create_action("在文件中查找(I)", shortcut="Shift+Ctrl+F")
+        quick_replace_in_file_action = self.create_action("在文件中替换(S)", shortcut="Shift+Ctrl+H")
+        self.add_actions(self.find_replace_menu, (quick_find_action, quick_replace_action,
+                                                  quick_find_in_file_action, quick_replace_in_file_action))
         # 将这些动作加入到 编辑菜单中
-        self.add_actions(self.edit_menu, (revert_action, redo_action, undo_action, None, reference_action))
+        self.add_actions(self.edit_menu, (None, revert_action, redo_action, undo_action, None, reference_action))
+
+        # 创建 项目 菜单的二级菜单
+        new_mark_action = self.create_action("添加标注文件(N)", shortcut="Shift+Ctrl+N")
+        new_mark_from_action = self.create_action("添加现有标注文件", shortcut="Alt+Ctrl+N")
+        self.add_actions(self.project_menu, (new_mark_action, new_mark_from_action))
 
         # 创建图像菜单的二级菜单/动作
         self.mode_menu = self.graph_menu.addMenu("模式(M)")
@@ -203,15 +239,9 @@ class MainWindow(QMainWindow):
                                             rotate_counterclockwise90_action, rotate_any_action))
 
         # 创建 标注 菜单的二级菜单/动作
-        self.layer_menu = self.add_menu("图层(L)", self.mark_menu, "layer_menu")
-        self.mark_menu.addSeparator()
         self.quick_select_menu = self.add_menu("快速选择工具", self.mark_menu, "quick_select_menu")
         self.mark_menu.addSeparator()
         self.outline_detect_menu = self.add_menu("轮廓检测(D)", self.mark_menu, "outline_detect_menu")
-
-        # 创建 标注菜单 的二级菜单 图层 的二级动作
-        new_layer_action = self.create_action("新建图层(N)", self.new_layer, "Shift+Ctrl+N")
-        self.layer_menu.addAction(new_layer_action)
 
         # 创建 标注菜单 的二级菜单 快速选择工具 的二级动作
         rectangle_action = self.create_action("矩形选择框", self.switch_select_tool, signal="toggled", checkable=True)
@@ -386,25 +416,29 @@ class MainWindow(QMainWindow):
     def update_file_menu(self):
         self.file_menu.clear()
         self.file_menu.addAction(self.file_menu_actions[0])
+        self.file_menu.addAction(self.file_menu_actions[1])
+        self.file_menu.addAction(self.file_menu_actions[2])
         recent_files_menu = self.file_menu.addMenu("打开最近的文件(T)...")
 
         if self.recent_files:
             for i, file_name in enumerate(self.recent_files):
                 dir_file_name = file_name.split("/")[-1]
-                action = self.create_action(str(i + 1) + " " + dir_file_name, slot=self._open_file_from_recent)
+                action = self.create_action(str(i + 1) + " " + dir_file_name,
+                                            slot=self._open_file_from_recent)
                 action.setData(QVariant(file_name))
                 recent_files_menu.addAction(action)
             recent_files_menu.addSeparator()
         remove_action = self.create_action("清空最近打开的文件列表", slot=self.remove_recent_files)
         recent_files_menu.addAction(remove_action)
 
-        self.add_actions(self.file_menu, self.file_menu_actions[1:])
+        self.add_actions(self.file_menu, self.file_menu_actions[3:])
 
     def open_file(self, file_name=None):
         if file_name is None or isinstance(file_name, bool):
             dir_ = os.path.dirname(self.recent_files[0]) if self.recent_files else os.path.dirname(".")
             # 打开一个 文件选择对口框
-            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, "Image files (*.png *.jpg *.ico *tif)")[0]
+            file_format = "Image files (*.png *.jpg *.ico *tif)"
+            file_name = QFileDialog.getOpenFileName(self, "选择遥感图片", dir_, file_format)[0]
 
         if file_name:
             file_names = []
@@ -426,9 +460,9 @@ class MainWindow(QMainWindow):
 
     def create_new_tab(self, file_name):
         try:
-            print(self.gadget_dock_widget.get_current_gadget())
-            new_tab = WorkbenchWidget(file_name=file_name, gadget=self.gadget_dock_widget.get_current_gadget())
-            tab_text = file_name.split("/")[-1]
+            new_tab = WorkbenchWidget(file_name=file_name,
+                                      gadget=self.gadget_dock_widget.get_current_gadget())
+            tab_text = os.path.basename(file_name)
             self.center_tab_widget.addTab(new_tab, tab_text)
             self.center_tab_widget.setCurrentWidget(new_tab)
             self.center_tab_widget.setTabToolTip(self.center_tab_widget.currentIndex(), file_name)
@@ -474,8 +508,9 @@ class MainWindow(QMainWindow):
 
     def update_close_button_enabled(self):
         is_tab_empty = self.center_tab_widget.count() != 0
-        self.file_menu_actions[2].setEnabled(is_tab_empty)
-        self.file_menu_actions[3].setEnabled(is_tab_empty)
+        self.file_menu_actions[4].setEnabled(is_tab_empty)
+        self.file_menu_actions[5].setEnabled(is_tab_empty)
+        self.file_menu_actions[6].setEnabled(is_tab_empty)
 
     def close_all_file(self):
         self.ok_to_continue()
@@ -552,10 +587,34 @@ class MainWindow(QMainWindow):
     def color_setting(self):
         pass
 
-    def zoom(self):
+    def create_new_project(self):
+        new_project_dialog = NewProjectDialog(parent=self)
+        if new_project_dialog.exec_():
+            self.setCursor(Qt.BusyCursor)
+            project_name, project_dir, image_file = new_project_dialog.new_project_info()
+
+            image_name = os.path.basename(image_file)
+            image_dir = os.path.dirname(image_file)
+            project_info = {
+                "project_name": project_name,
+                "org_img_name": image_name
+            }
+
+            self.create_new_tab(image_file)
+            self.project_dock_widget.create_project(project_info)
+
+            self.setCursor(Qt.ArrowCursor)
+
+    def open_project(self):
         pass
 
-    def tongs(self):
+    def close_project(self):
+        pass
+
+    def project_info(self):
+        pass
+
+    def save_all(self):
         pass
 
 

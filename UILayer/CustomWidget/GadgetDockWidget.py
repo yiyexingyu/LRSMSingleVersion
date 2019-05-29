@@ -26,7 +26,7 @@ class GadgetDockWidget(DockWidget):
         self.current_gadget = None
 
         self._init_content_widget()
-        self.setWidget(self.content_widget)
+        # self.setWidget(self.content_widget)
 
     def _init_content_widget(self):
         gadget_dock_widget_stylesheet = """
