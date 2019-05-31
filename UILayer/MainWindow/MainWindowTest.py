@@ -587,24 +587,6 @@ class MainWindow(QMainWindow):
     def color_setting(self):
         pass
 
-    def create_new_project(self):
-        new_project_dialog = NewProjectDialog(parent=self)
-        if new_project_dialog.exec_():
-            self.setCursor(Qt.BusyCursor)
-            project_name, project_dir, image_file = new_project_dialog.new_project_info()
-
-            image_name = os.path.basename(image_file)
-            image_dir = os.path.dirname(image_file)
-            project_info = {
-                "project_name": project_name,
-                "org_img_name": image_name
-            }
-
-            self.create_new_tab(image_file)
-            self.project_dock_widget.create_project(project_info)
-
-            self.setCursor(Qt.ArrowCursor)
-
     def open_project(self):
         pass
 

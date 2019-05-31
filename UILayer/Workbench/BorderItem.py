@@ -105,9 +105,9 @@ class BorderItem(QGraphicsItem):
     def paint(self, painter, option, widget=None) -> None:
         pen = QPen(self.line_style)
         pen.setColor(Qt.black)
-        pen.setWidth(1)
+        pen.setWidth(2)
         if option.state & QStyle.State_Selected:
-            pen.setColor(Qt.blue)
+            pen.setColor(Qt.white)
 
         painter.setPen(pen)
         if self.shape == RECT_QUICK_SELECT_TOOL:

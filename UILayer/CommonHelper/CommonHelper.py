@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import QAction, QAbstractButton
+from PyQt5.QtWidgets import QAction, QAbstractButton, QMenu
 from PyQt5.QtGui import QTransform, QIcon
 
 
-def add_menu(text, target, object_name=None, tip=None, slot=None, signal=None):
+def add_menu(text, target, object_name=None, tip=None, slot=None, signal=None) -> QMenu:
     new_menu = target.addMenu(text)
     if object_name:
         new_menu.setObjectName(object_name)
@@ -23,10 +23,9 @@ def add_actions(target, actions):
             target.addSeparator()
 
 
-def create_action(parent, text, slot=None, shortcut=None, tip=None,
+def create_action(parent=None, text="", shortcut=None, slot=None, tip=None,
                   icon=None, checkable=False, signal="triggered", image=None):
     new_action = QAction(text, parent)
-
     if icon:
         new_action.setIcon(QIcon(icon))
     if shortcut:
@@ -73,3 +72,5 @@ def print_transform(text, transform=QTransform()):
     print(transform.m32(), " ", end="")
     print(transform.m33(), " ", end="")
     print(" ")
+
+

@@ -13,6 +13,9 @@ GRIP_TONGS = 6
 GRIP_ROTATE = 7
 ZOOM_TOOL = 8
 
+RECTANGLE = 3
+ELLIPSE = 4
+
 import struct
 
 
