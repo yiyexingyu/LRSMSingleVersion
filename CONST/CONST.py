@@ -1,4 +1,3 @@
-
 """
 小工具停靠窗口
 每个button或action对应的CONST
@@ -84,7 +83,17 @@ def test1(bin_text):
     print("m: ", m)
 
 
-# t()
+def counter(start_at=0):
+    count_num = start_at
+    while True:
+        val = (yield count_num)
+        if val is not None:
+            count_num = val
+        else:
+            count_num += 1
 
 
-
+count1 = counter(1)
+count2 = counter(3)
+print(next(count1))
+print(next(count2))

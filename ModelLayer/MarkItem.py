@@ -7,10 +7,13 @@
 # @Software: PyCharm
 
 from LRSMSingleVersion.ModelLayer.AbstractMarkItem import AbstractMarkItem
+from LRSMSingleVersion.CommonHelper.CommonHelper import counter
 
 
 class MarkItem(AbstractMarkItem):
     """ 描述 """
+
+    __name_num_count = counter(1)
 
     def __init__(self, name=None):
         super(MarkItem, self).__init__(name)
@@ -21,6 +24,14 @@ class MarkItem(AbstractMarkItem):
         self._area = -1
         self._markers = []
         self._mark_time = None
+
+        self._create_mark_item_name()
+
+    def _create_mark_item_name(self):
+        if self._name is None:
+            num = next(MarkItem.__name_num_count)
+            name = "新建选区" + str(num)
+            self.set_name(name)
 
     def set_outline(self, outline_array: list):
         self._outline_array = list(outline_array)

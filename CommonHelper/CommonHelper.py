@@ -94,3 +94,13 @@ def remove_object_by_indexes(src_list, indexes):
                 src_list.pop(indexes)
     return src_list
 
+
+def counter(start_at=1):
+    count_num = start_at
+    while True:
+        val = (yield count_num)
+        if val is not None:
+            count_num = val
+        else:
+            count_num += 1
+
