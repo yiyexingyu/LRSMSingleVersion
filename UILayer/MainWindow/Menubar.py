@@ -1,6 +1,5 @@
-import os
 from PyQt5.QtWidgets import *
-from LRSMSingleVersion.UILayer.CommonHelper.CommonHelper import *
+from LRSMSingleVersion.CommonHelper.CommonHelper import *
 
 
 class Menubar:

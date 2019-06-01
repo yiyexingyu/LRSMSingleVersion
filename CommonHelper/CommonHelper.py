@@ -74,3 +74,23 @@ def print_transform(text, transform=QTransform()):
     print(" ")
 
 
+def remove_object_by_objects(src_list, objects):
+    if isinstance(src_list, list):
+        for obj in objects:
+            if obj in src_list:
+                src_list.remove(obj)
+    return src_list
+
+
+def remove_object_by_indexes(src_list, indexes):
+    if isinstance(src_list, list):
+        if isinstance(indexes, list):
+            indexes = reversed(sorted(indexes))
+            for index in indexes:
+                if 0 <= index < len(src_list):
+                    src_list.pop(index)
+        elif isinstance(indexes, int):
+            if 0 <= indexes < len(src_list):
+                src_list.pop(indexes)
+    return src_list
+

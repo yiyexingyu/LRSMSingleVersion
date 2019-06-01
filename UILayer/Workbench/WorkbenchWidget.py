@@ -68,9 +68,7 @@ class WorkbenchWidget(QWidget):
         # print(cv2_img.shape)
         # # cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
         # image = QImage(cv2_img, cv2_img.shape[1], cv2_img.shape[0], QImage.Format_RGB8888)
-        print("image.width: ", image.width())
-        print("image.height: ", image.height())
-        print("image.size: ", image.size())
+
         self.workbench_scene.setSceneRect(0, 0, image.width(), image.height())
         if image.isNull():
             del self

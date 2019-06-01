@@ -5,11 +5,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from LRSMSingleVersion.Application.App import BASE_DIR
-from LRSMSingleVersion.UILayer.CommonHelper.CommonHelper import *
-from LRSMSingleVersion.UILayer.CustomWidget.GadgetDockWidget import GadgetDockWidget
+from LRSMSingleVersion.CommonHelper.CommonHelper import *
 from LRSMSingleVersion.UILayer.Workbench.WorkbenchWidget import WorkbenchWidget, FileOpenFailException
-from LRSMSingleVersion.UILayer.CustomWidget.ProjectTreeDockWidget import ProjectDockWidget
 from LRSMSingleVersion.UILayer.CustomWidget.NewProjectDialog import NewProjectDialog
 from LRSMSingleVersion.UILayer.MainWindow.MainWindowUi import MainWindowUI
 

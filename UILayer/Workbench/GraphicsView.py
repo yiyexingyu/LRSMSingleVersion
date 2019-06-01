@@ -1,4 +1,3 @@
-import sys
 import time
 
 from PyQt5.QtCore import *
@@ -8,7 +7,6 @@ from PyQt5.QtWidgets import *
 import gdal
 from LRSMSingleVersion.CONST.CONST import *
 from LRSMSingleVersion.UILayer.Workbench.BorderItem import BorderItem
-from LRSMSingleVersion.UILayer.CommonHelper.CommonHelper import print_transform
 
 
 class GraphicsView(QGraphicsView):

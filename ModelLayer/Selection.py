@@ -8,6 +8,7 @@
 
 from PyQt5.QtCore import QRect
 from LRSMSingleVersion.CONST.CONST import *
+from LRSMSingleVersion.ModelLayer.AbstractMarkItem import AbstractMarkItem
 
 
 class Selection(object):
@@ -38,4 +39,8 @@ class Selection(object):
     def set_name(self, name):
         self._name = name
 
-    def bind_to(self, ):
+    def bind_to(self, mark_item: AbstractMarkItem):
+        pass
+
+    def unbind_to(self, mark_item: AbstractMarkItem):
+        pass

@@ -1,11 +1,10 @@
 import os
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QContextMenuEvent
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QScrollArea, \
-    QTreeWidget, QTreeWidgetItem, QDockWidget, QMenu, QInputDialog
+from PyQt5.QtGui import QContextMenuEvent
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QDockWidget, QInputDialog
 
 from LRSMSingleVersion.Application.App import BASE_DIR
-from LRSMSingleVersion.UILayer.CommonHelper.CommonHelper import *
+from LRSMSingleVersion.CommonHelper.CommonHelper import *
 
 
 class ProjectDockWidget(QDockWidget):
